@@ -1,11 +1,13 @@
 /**
  * Class responsible to create and valuate another classes
  * @param [optional] element: a string to parse to a class
- * TODO @param options: parsing and valuating options
+ * @param [optional] container: the container object to put classes in (default is window)
+ * TODO @param [optional] options: parsing and valuating options
  */
 function Bwf(elem, container, options) {
     var bwf = this;
     var elem = elem;
+
     var container = container || window;
 
     var result = {};
@@ -16,10 +18,11 @@ function Bwf(elem, container, options) {
      * @param options: the properties to insert into class
      */
     var classTemplate = function(className, options) {
-        options['instanceof'] = function(klass) {
-            return (klass.prototype.constructor.name === className);
-        };
-        var keys = options ? Object.keys(options) : '';
+        var keys = options ?
+            Object.keys(options).filter(function(k) {
+                return k !== '__types';
+            }) : '';
+
         var code = 'this.f = function ' + className + '(options) {\
             var c = this;\
             var k = [];\
@@ -35,13 +38,24 @@ function Bwf(elem, container, options) {
                     c[key] = options[key];\
                 }\
             });\
+            c[\'instanceof\'] = function(klass) {\
+    	        return (klass.prototype.constructor.name === this.constructor.name);\
+    	    };\
             return c;\
         };';
         var klass = eval(code);
 
+        // class dynamic data
         keys.forEach(function(key) {
             klass.prototype[key] = options[key];
         });
+
+        // Class static data
+        klass.keys = keys;
+        klass.__types = options.__types;
+        klass.toString = function() {
+            return 'function ' + className + '() { [native code] }';
+        };
 
         return klass;
     };
@@ -97,7 +111,7 @@ function Bwf(elem, container, options) {
                 // Verify if is a class
                 if (parts[0] !== parts[0].toLowerCase()) {
                     var className = parts[0].split(/:/)[0];
-                    result[className] = {};
+                    result[className] = new Object();
                     var klass = result[className];
 
                     // remove first element
@@ -109,35 +123,92 @@ function Bwf(elem, container, options) {
                             return '"' + val.trim() + '"';
                         }
                     ).trim());
+                    klass.__types = new Object();
+
+                    var kk = JSON.parse(parts.join('').trim().replace(/[a-zA-Z0-9_]+[a-zA-Z0-9\-_ ]*/g,
+                        function(val) {
+                            return '"' + val.trim() + '"';
+                        }
+                    ).trim());
 
                     // Set variable types
-                    Object.keys(klass).forEach(
-                        function(arg) {
-                            switch (klass[arg]) {
+                    Object.keys(kk).forEach(function(arg) {
+                        if (klass[arg] instanceof Array) {
+                            switch (klass[arg][0].toString().toLowerCase()) {
                                 case 'string':
-                                    klass[arg] = '';
+                                    klass[arg] = [new String()];
+                                    klass.__types[arg] = [String];
                                     break;
                                 case 'number':
-                                    klass[arg] = 0;
+                                    klass[arg] = [new Number()];
+                                    klass.__types[arg] = [Number];
                                     break;
                                 case 'boolean':
-                                    klass[arg] = false;
+                                    klass[arg] = [new Boolean()];
+                                    klass.__types[arg] = [Boolean];
                                     break;
                                 case 'list':
-                                    klass[arg] = [];
+                                    klass[arg] = [new Array()];
+                                    klass.__types[arg] = [Array];
                                     break;
                                 case 'object':
-                                    klass[arg] = {};
+                                    klass[arg] = [new Object()];
+                                    klass.__types[arg] = [Object];
                                     break;
                                 case 'function':
-                                    klass[arg] = function() {};
+                                    klass[arg] = [new Function()];
+                                    klass.__types[arg] = [Function];
                                     break;
                                 default:
-                                    klass[arg] = {};
+                                    // Have to match PERFECTLY and CASE SENSITIVE
+                                    if (container[klass[arg]]) {
+                                        klass[arg] = [new container[klass[arg]]({})];
+                                        klass.__types[arg] = [container[klass[arg].constructor.name]];
+                                    } else {
+                                        klass[arg] = [new Object()];
+                                        klass.__types[arg] = [Object];
+                                    }
+                                    break;
+                            }
+                        } else {
+                            switch (klass[arg].toString().toLowerCase()) {
+                                case 'string':
+                                    klass[arg] = new String();
+                                    klass.__types[arg] = String;
+                                    break;
+                                case 'number':
+                                    klass[arg] = new Number();
+                                    klass.__types[arg] = Number;
+                                    break;
+                                case 'boolean':
+                                    klass[arg] = new Boolean();
+                                    klass.__types[arg] = Boolean;
+                                    break;
+                                case 'list':
+                                    klass[arg] = new Array();
+                                    klass.__types[arg] = Array;
+                                    break;
+                                case 'object':
+                                    klass[arg] = new Object();
+                                    klass.__types[arg] = Object;
+                                    break;
+                                case 'function':
+                                    klass[arg] = new Function();
+                                    klass.__types[arg] = Function;
+                                    break;
+                                default:
+                                    // Have to match PERFECTLY and CASE SENSITIVE
+                                    if (container[klass[arg]]) {
+                                        klass[arg] = new container[klass[arg]]({});
+                                        klass.__types[arg] = container[klass[arg].constructor.name];
+                                    } else {
+                                        klass[arg] = new Object();
+                                        klass.__types[arg] = Object;
+                                    }
                                     break;
                             }
                         }
-                    );
+                    });
 
                     // return it
                     container[className] = classTemplate(className, klass);
@@ -190,6 +261,10 @@ function Bwf(elem, container, options) {
 
             return result;
         }
+    };
+
+    Bwf.toString = function() {
+        return 'function Bwf() { [native code] }';
     };
 
     return bwf.prototype.init();

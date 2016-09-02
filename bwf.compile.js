@@ -29,10 +29,9 @@
      */
     compile = function() {
         var script = document.getElementsByTagName('script');
-        var head = document.getElementsByTagName('head')[0];
         var i, src = [], elem;
         for(i = 0; i < script.length; i++) {
-            if(script[i].type == 'text/bwf') {
+            if(script[i].type == 'text/beowulf') {
                 if(script[i].src) {
                     src.push(load(script[i].src));
                 } else {
@@ -43,10 +42,9 @@
         if(src.length == 0) {
             return;
         }
-        elem = document.createElement('script');
-        elem.type = 'text/javascript';
-        elem.innerHTML = '//Compiled Beowulf\n\n' + new Bwf().create(src);
-        head.appendChild(elem);
+        
+        // add class to scope
+        new Bwf().create(src[0]);
     }
 
     // compile
