@@ -43,8 +43,10 @@
             return;
         }
         
-        // add class to scope
-        new Bwf().create(src[0]);
+        // add classes to scope
+        src.forEach(function(s) {
+            new Bwf().create(s);
+        });
     }
 
     // compile
