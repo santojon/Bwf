@@ -9,7 +9,6 @@ function Bwf(elem, container, options) {
     var elem = elem;
 
     var container = container || window;
-
     var result = {};
 
     /**
@@ -87,9 +86,36 @@ function Bwf(elem, container, options) {
         return result;
     };
 
+    /**
+     * Setup specific types used in Bwf
+     */
+    var setupInnerTypes = function() {
+        if (!container['Password']) {
+            container['Password'] = class Password {
+                constructor(obj) {
+                    this.value = btoa(obj.value);
+                }
+
+                getPass() {
+                    return atob(this.value);
+                }
+
+                instanceof() {
+                    return (Password.prototype.constructor.name === this.constructor.name);
+                }
+
+                static toString() {
+                    return 'function Password() { [native code] }';
+                }
+            };
+        }
+        Password.__types = { value: String };
+    }
+
     // the Bwf itself
     bwf.prototype = {
 	    init: function() {
+            setupInnerTypes();
 	        return this;
 	    },
 	    /**
@@ -98,19 +124,19 @@ function Bwf(elem, container, options) {
 	    instanceof: function(klass) {
 	        return (klass.prototype.constructor.name === 'Bwf');
 	    },
-	    /**
+        /**
 	     * Creates a class for the given string
 	     * @param el: the Beowulf class notation, as string
 	     */
         create: function(el) {
             elem = el || elem;
-            var parts = splitOn(elem, / /);
+            var parts = splitOn(elem, /:/);
 
             // can split?
             if ((parts !== undefined) && (parts[0] !== '')) {
                 // Verify if is a class
                 if (parts[0] !== parts[0].toLowerCase()) {
-                    var className = parts[0].split(/:/)[0];
+                    var className = parts[0];
                     result[className] = new Object();
                     var klass = result[className];
 
@@ -118,97 +144,112 @@ function Bwf(elem, container, options) {
                     parts.shift();
 
                     // Parse as Bwf JSON notation
-                    klass = JSON.parse(parts.join('').trim().replace(/[a-zA-Z0-9_]+[a-zA-Z0-9\-_ ]*/g,
+                    klass = JSON.parse(parts.join(':').trim().replace(/[a-zA-Z0-9_]+[a-zA-Z0-9\-_ ]*/g,
                         function(val) {
                             return '"' + val.trim() + '"';
                         }
                     ).trim());
                     klass.__types = new Object();
 
-                    var kk = JSON.parse(parts.join('').trim().replace(/[a-zA-Z0-9_]+[a-zA-Z0-9\-_ ]*/g,
+                    var kk = JSON.parse(parts.join(':').trim().replace(/[a-zA-Z0-9_]+[a-zA-Z0-9\-_ ]*/g,
                         function(val) {
                             return '"' + val.trim() + '"';
                         }
                     ).trim());
 
-                    // Set variable types
-                    Object.keys(kk).forEach(function(arg) {
-                        if (klass[arg] instanceof Array) {
-                            switch (klass[arg][0].toString().toLowerCase()) {
-                                case 'string':
-                                    klass[arg] = [new String()];
-                                    klass.__types[arg] = [String];
-                                    break;
-                                case 'number':
-                                    klass[arg] = [new Number()];
-                                    klass.__types[arg] = [Number];
-                                    break;
-                                case 'boolean':
-                                    klass[arg] = [new Boolean()];
-                                    klass.__types[arg] = [Boolean];
-                                    break;
-                                case 'list':
-                                    klass[arg] = [new Array()];
-                                    klass.__types[arg] = [Array];
-                                    break;
-                                case 'object':
-                                    klass[arg] = [new Object()];
-                                    klass.__types[arg] = [Object];
-                                    break;
-                                case 'function':
-                                    klass[arg] = [new Function()];
-                                    klass.__types[arg] = [Function];
-                                    break;
-                                default:
-                                    // Have to match PERFECTLY and CASE SENSITIVE
-                                    if (container[klass[arg]]) {
-                                        klass[arg] = [new container[klass[arg]]({})];
-                                        klass.__types[arg] = [container[klass[arg].constructor.name]];
-                                    } else {
+                    var deep = function(kk, klass) {
+                        // Set variable types
+                        Object.keys(kk).forEach(function(arg) {
+                            if (klass[arg] instanceof Array) {
+                                switch (klass[arg][0].toString().toLowerCase()) {
+                                    case 'string':
+                                        klass[arg] = [new String()];
+                                        klass.__types[arg] = [String];
+                                        break;
+                                    case 'number':
+                                        klass[arg] = [new Number()];
+                                        klass.__types[arg] = [Number];
+                                        break;
+                                    case 'boolean':
+                                        klass[arg] = [new Boolean()];
+                                        klass.__types[arg] = [Boolean];
+                                        break;
+                                    case 'list':
+                                        klass[arg] = [new Array()];
+                                        klass.__types[arg] = [Array];
+                                        break;
+                                    case 'object':
                                         klass[arg] = [new Object()];
                                         klass.__types[arg] = [Object];
-                                    }
-                                    break;
-                            }
-                        } else {
-                            switch (klass[arg].toString().toLowerCase()) {
-                                case 'string':
-                                    klass[arg] = new String();
-                                    klass.__types[arg] = String;
-                                    break;
-                                case 'number':
-                                    klass[arg] = new Number();
-                                    klass.__types[arg] = Number;
-                                    break;
-                                case 'boolean':
-                                    klass[arg] = new Boolean();
-                                    klass.__types[arg] = Boolean;
-                                    break;
-                                case 'list':
-                                    klass[arg] = new Array();
-                                    klass.__types[arg] = Array;
-                                    break;
-                                case 'object':
-                                    klass[arg] = new Object();
-                                    klass.__types[arg] = Object;
-                                    break;
-                                case 'function':
-                                    klass[arg] = new Function();
-                                    klass.__types[arg] = Function;
-                                    break;
-                                default:
-                                    // Have to match PERFECTLY and CASE SENSITIVE
-                                    if (container[klass[arg]]) {
-                                        klass[arg] = new container[klass[arg]]({});
-                                        klass.__types[arg] = container[klass[arg].constructor.name];
-                                    } else {
+                                        break;
+                                    case 'function':
+                                        klass[arg] = [new Function()];
+                                        klass.__types[arg] = [Function];
+                                        break;
+                                    default:
+                                        // Have to match PERFECTLY and CASE SENSITIVE
+                                        if (container[klass[arg]]) {
+                                            klass[arg] = [new container[klass[arg]]({})];
+                                            klass.__types[arg] = [container[klass[arg].constructor.name]];
+                                        } else {
+                                            klass[arg] = [new Object()];
+                                            klass.__types[arg] = [Object];
+                                        }
+                                        break;
+                                }
+                            } else if (klass[arg] instanceof Object) {
+                                // Set __types for deep subclass
+                                klass[arg].__types = new Object();
+
+                                // run deep mapping
+                                deep(kk[arg], klass[arg]);
+
+                                // get deep mappings back to superclass
+                                klass.__types[arg] = klass[arg].__types;
+                                delete klass[arg].__types;
+                            } else {
+                                switch (klass[arg].toString().toLowerCase()) {
+                                    case 'string':
+                                        klass[arg] = new String();
+                                        klass.__types[arg] = String;
+                                        break;
+                                    case 'number':
+                                        klass[arg] = new Number();
+                                        klass.__types[arg] = Number;
+                                        break;
+                                    case 'boolean':
+                                        klass[arg] = new Boolean();
+                                        klass.__types[arg] = Boolean;
+                                        break;
+                                    case 'list':
+                                        klass[arg] = new Array();
+                                        klass.__types[arg] = Array;
+                                        break;
+                                    case 'object':
                                         klass[arg] = new Object();
                                         klass.__types[arg] = Object;
-                                    }
-                                    break;
+                                        break;
+                                    case 'function':
+                                        klass[arg] = new Function();
+                                        klass.__types[arg] = Function;
+                                        break;
+                                    default:
+                                        // Have to match PERFECTLY and CASE SENSITIVE
+                                        if (container[klass[arg]]) {
+                                            klass[arg] = new container[klass[arg]]({});
+                                            klass.__types[arg] = container[klass[arg].constructor.name];
+                                        } else {
+                                            klass[arg] = new Object();
+                                            klass.__types[arg] = Object;
+                                        }
+                                        break;
+                                }
                             }
-                        }
-                    });
+                        });
+                    }
+
+                    // Deeply map class
+                    deep(kk, klass);
 
                     // return it
                     container[className] = classTemplate(className, klass);
