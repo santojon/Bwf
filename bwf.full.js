@@ -189,8 +189,8 @@ function Bwf(elem, container, options) {
                                     default:
                                         // Have to match PERFECTLY and CASE SENSITIVE
                                         if (container[klass[arg]]) {
-                                            klass[arg] = [new container[klass[arg]]({})];
-                                            klass.__types[arg] = [container[klass[arg].constructor.name]];
+                                            klass[arg] = [new container[klass[arg][0]]({})];
+                                            klass.__types[arg] = [container[klass[arg][0].constructor.name]];
                                         } else {
                                             klass[arg] = [new Object()];
                                             klass.__types[arg] = [Object];
